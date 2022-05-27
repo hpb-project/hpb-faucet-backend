@@ -273,7 +273,7 @@ func CreateKey() (privs, addrs string) {
 
 func GetBalance(param string) (bool, interface{}, error) {
 	//url := "https://mainnet.infura.io/v3/e15791a2ccc34c019f16d6aeeea732cf"
-	url := "http://18.169.173.49:8580"
+	url := beego.AppConfig.String("rpc::url")
 	data, err := json.Marshal(map[string]interface{}{
 		"jsonrpc": "2.0", "method": "eth_getBalance", "id": 1, "params": []interface{}{param, "latest"}})
 	if err != nil {
