@@ -61,8 +61,16 @@ func (f *FaucetController) Transfer() {
 
 	//限制每个github账号一天领取一次
 	if boo := rds_conn.SR.IsKeyExists(githubId); boo {
-		f.ResponseInfo(500, "", "user " + userInfo.Login +  " Exceeding the daily limit.")
-		return
+		//判断申请次数 errCount 不为nil，则value存放的是githubId,可以放行 认为至少申请了一次
+		applicationCount, errCount :=strconv.Atoi(rds_conn.SR.Get(githubId))
+		if errCount == nil && applicationCount >=3 {
+			//超过3次就提示超过次数限制
+			f.ResponseInfo(500, "", "user " + userInfo.Login +  " Exceeding the daily limit.")
+			return
+		}
+
+		//f.ResponseInfo(500, "", "user " + userInfo.Login +  " Exceeding the daily limit.")
+		//return
 	}
 
 
@@ -105,8 +113,23 @@ func (f *FaucetController) Transfer() {
 	//it is saved in redis to limit the collection frequency of users
 	if hash != nil && len(hash.(string)) > 0 {
 
-		//rds_conn.SR.SetKvAndExp(param.To, param.To, tie)
-		rds_conn.SR.SetKvAndExp(githubId, githubId, tie)
+		//rds_conn.SR.SetKvAndExp(githubId, githubId, tie)
+		//判断是否已经申请过
+		if boo := rds_conn.SR.IsKeyExists(githubId); boo {
+			//已经存在这个key,获取这个key申请的次数。 转化次数的时候可能会出去，之前申请的里面value存在的账户
+			applicationCount, errCount :=strconv.Atoi(rds_conn.SR.Get(githubId))
+			if errCount != nil {
+				//获取不到次数，至少申请了一次，次数从2开始
+				rds_conn.SR.SetKvAndExp(githubId, "2", tie)
+			}else{
+				applicationCount ++
+				rds_conn.SR.SetKvAndExp(githubId, strconv.Itoa(applicationCount), tie)
+			}
+		}else{
+			//第一次领取，插入次数1
+			rds_conn.SR.SetKvAndExp(githubId, "1", tie)
+		}
+
 
 		f.ResponseInfo(200, "", hash)
 
